@@ -27,9 +27,13 @@ Definitions of constants and the spin lattice
 #Below the Curie temperature, Tc, the system is subcritical, it will demonstrate ferromagnetism. Above the Tc is superccritical, a system will only display paramagnetism at these temperatures. It will lose its own magnetization but respond to a magnetic field. The Tc for iron is 1043K. The atoms have too much energy to align to anything.
 
 #And the heat capacity is Cv = beta/T (<E**2> - <E>**2). Both are determined by fluctuations apparently.
-T = float(2)
+
+temperatures = np.arange(1,10,0.5) # Kelvin
+
 h = 0.001 # Teslas
-beta = 1/T
+
+beta_array = [1/T for T in temperatures]
+
 
 
 J = 1.0 #interaction energy
@@ -135,39 +139,39 @@ def mag_sus( spin_lattice ):
 	
 #This copy function is to keep the original lattice for comparison with the equilibrium.
 original_spin_lattice = copy.deepcopy(spin_lattice) #http://bit.ly/1P0AC9u
-'''
-#---------------------------------------
-#Iterative process toward Equilibrium 
-#---------------------------------------
-'''
-#This start the runtime timer
-start = timeit.default_timer() #http://bit.ly/1mUNYrh
+
+#Calculation of the energy change and acceptance of the flip in each iteration of the process toward equilibrium
+def iteration(original_spin_lattice, beta):
+	global n
+
+	#This start the runtime timer
+	start = timeit.default_timer() #http://bit.ly/1mUNYrh
 	
-#Loop counter is used to get an approximation to the number of sweeps carried out
-loop_counter = 0.0
-enough = 300
-M_arr = []
-mag_sus_arr = []
+	#Loop counter is used to get an approximation to the number of sweeps carried out
+	loop_counter = 0.0
+	enough = 300
+	#M_arr = []
+	#mag_sus_arr = []
 	
 	#The below while loop reads "while the lattice is not ferromagnetic do:", ferromagnetic meaning, all elements point in the same direction
-while abs( np.mean(spin_lattice) ) != 1: 
+	while abs( np.mean(spin_lattice) ) != 1: 
 	#while loop_counter < enough:
- 	# 1. Pick a spin site randomly and calculate the contribution to the energy involving this spin.
-	i = randint( 0, n-1 )	#Selection probability is hopefully catered for here.
-	j = randint( 0, n-1 )	#Otherwise "ergodicity" wouldn't be met!
-	H1 = H(i,j)[0]
-	# 2. Calculate the energy for the flipped original spin.
-	spin_lattice[i][j] *= -1 #spin value flipped
-	H2 = H(i,j)[0]			 
-	dE = H1 - H2	#	dE = Hij_flip - Hij. HE = sum of all Hij
-	P_flip = exp( -beta*dE )
-	if dE <= 0: 
-		spin_lattice[i][j] *= -1
-		# 3. If the new energy is less, keep the flipped value.
-	ran_num = random.random()
-	if dE > 0 and ran_num < P_flip:	#Acceptance probability
-		spin_lattice[i][j] *= -1
-		# 4. If the new energy is more, only keep with probability P_flip
+ 		# 1. Pick a spin site randomly and calculate the contribution to the energy involving this spin.
+		i = randint( 0, n-1 )	#Selection probability is hopefully catered for here.
+		j = randint( 0, n-1 )	#Otherwise "ergodicity" wouldn't be met!
+		H1 = H(i,j)[0]
+		# 2. Calculate the energy for the flipped original spin.
+		spin_lattice[i][j] *= -1 #spin value flipped
+		H2 = H(i,j)[0]			 
+		dE = H1 - H2	#	dE = Hij_flip - Hij. HE = sum of all Hij
+		P_flip = exp( -beta*dE )
+		if dE <= 0: 
+			spin_lattice[i][j] *= -1
+			# 3. If the new energy is less, keep the flipped value.
+		ran_num = random.random()
+		if dE > 0 and ran_num < P_flip:	#Acceptance probability
+			spin_lattice[i][j] *= -1
+			# 4. If the new energy is more, only keep with probability P_flip
 	
 		#Addition of the net magnetization and magnetic susceptibility to its list
 		#M_arr.append( np.mean(spin_lattice) )
@@ -178,17 +182,26 @@ while abs( np.mean(spin_lattice) ) != 1:
 	eqlb_mag_sus = mag_sus( spin_lattice )	#Equilibrium value for magnetic sus.
 	loop_counter += 1
 	
-
+	#This is only an approximate because i and j are generated randomly, so for 25 elements, n = 5, in 25 loops it is quite likely that not every element was evaluated.
+	approx_sweeps = loop_counter/(n)**2
+	
+	#Stops the runtime timer
+	stop = timeit.default_timer()
+	runtime = stop - start
+	
+	return spin_lattice, eqlb_M, eqlb_mag_sus, approx_sweeps, runtime
 #------------------------------
 #Results to output in terminal
 #------------------------------
 
-#This is only an approximate because i and j are generated randomly, so for 25 elements, n = 5, in 25 loops it is quite likely that not every element was evaluated.
-approx_sweeps = loop_counter/(n)**2
-	
-	#Stops the runtime timer
-stop = timeit.default_timer()
-runtime = stop - start
+#The RHS of the equation below runs the iteration function for each value of temperature. It stores the results of each iteration in an array. All of these results arrays are stored in the LHS.
+results_array = [iteration(original_spin_lattice, beta) for beta in beta_array]
+
+spin_lattices_array = [results_array[i][0] for i in results_array]
+eqlb_M_values = [results_array[i][1] for i in results_array]
+eqlb_mag_sus_values = [results_array[i][2] for i in results_array]
+approx_sweeps_values = [results_array[i][3] for i in results_array]
+runtime_values = [results_array[i][4] for i in results_array]
 
 #The "%0.3f" %approx_sweeps bit just rounds off the number of sweeps to 3 sig figs.
 print 'Runtime = ', runtime, 'seconds for a total of ~', "%0.3f" %approx_sweeps, 'sweeps.'
