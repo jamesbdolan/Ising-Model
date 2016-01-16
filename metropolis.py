@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 import scipy.constants as pc
 import random
 from random import randint
-from math import exp
+from math import exp, sqrt
 from math import fsum
 import copy
 import timeit
@@ -28,12 +28,12 @@ Definitions of constants and the spin lattice
 
 #And the heat capacity is Cv = beta/T (<E**2> - <E>**2). Both are determined by fluctuations apparently.
 
-temperatures = np.arange(1,100,0.5) # Kelvin
+temperatures = np.arange(0.1,10,0.01) # Kelvin
 
 h = 0.001 # Teslas
-
+#kb = pc.k * (10**22)
+#print kb
 beta_array = [1/T for T in temperatures]
-
 
 
 J = 1.0 #interaction energy
@@ -62,6 +62,9 @@ for i in range(n):
 		
 #M is the magnetization of the material in other words the magnetic dipole moment per unit volume, measured in A/m. It is the mean of the spin lattice.
 
+#This copy function is to keep the original lattice for comparison with the equilibrium.
+#original_spin_lattice = copy.deepcopy(spin_lattice) #http://bit.ly/1P0AC9u
+spin_lattice_copies = [copy.deepcopy(spin_lattice) for i in temperatures]
 
 
 '''
@@ -71,85 +74,82 @@ Definitions of the functions
 '''
 
 #These 4 functions, given an row number, i, and column number, j, will produce a neighbour either in the direction right, left, up or down. They are called in the following function, pairs(i,j)
-def Sj_r(i, j):
-	Sj_r = spin_lattice[i][j+1]
+def Sj_r(spin_lattice_copy, i, j):
+	Sj_r = spin_lattice_copy[i][j+1]
 	return Sj_r
-def Sj_l(i, j):	
-	Sj_l = spin_lattice[i][j-1]
+def Sj_l(spin_lattice_copy, i, j):	
+	Sj_l = spin_lattice_copy[i][j-1]
 	return Sj_l
-def Sj_u(i, j):	
-	Sj_u = spin_lattice[i-1][j]
+def Sj_u(spin_lattice_copy, i, j):	
+	Sj_u = spin_lattice_copy[i-1][j]
 	return Sj_u
-def Sj_d(i, j):	
-	Sj_d = spin_lattice[i+1][j]
+def Sj_d(spin_lattice_copy, i, j):	
+	Sj_d = spin_lattice_copy[i+1][j]
 	return Sj_d
 
 #As stated above, this function uses the above 4 functions. It breaks down a 2D matrix into 9 locations. It creates a list of neighbours. It sums them and counts the number of them in the list.
-def pairs(i, j):
-	Si = spin_lattice[i][j]
+def pairs(spin_lattice_copy, i, j):
+	Si = spin_lattice_copy[i][j]
 
 	# Only considering the top row
 	if i == 0:
 		if j == 0:	#Top left corner
-			Sj = [Sj_r(i, j), Sj_d(i, j)]
+			Sj = [Sj_r(spin_lattice_copy, i, j), Sj_d(spin_lattice_copy, i, j)]
 		if j == n-1:	#Top right corner
-			Sj = [Sj_l(i, j), Sj_d(i, j)]
+			Sj = [Sj_l(spin_lattice_copy, i, j), Sj_d(spin_lattice_copy, i, j)]
 		elif j != 0 and j != n-1:	#Elsewhere in that top row
-			Sj = [Sj_r(i, j), Sj_l(i, j), Sj_d(i, j)]
+			Sj = [Sj_r(spin_lattice_copy, i, j), Sj_l(spin_lattice_copy, i, j), Sj_d(spin_lattice_copy, i, j)]
 	
 	# Only considering bottom row
 	if i == n-1:
 		if j == 0:	#Bottom left corner
-			Sj = [Sj_r(i, j), Sj_u(i, j)]
+			Sj = [Sj_r(spin_lattice_copy, i, j), Sj_u(spin_lattice_copy, i, j)]
 		if j == n-1:	#Bottom right corner
-			Sj = [Sj_l(i, j), Sj_u(i, j)]			
+			Sj = [Sj_l(spin_lattice_copy, i, j), Sj_u(spin_lattice_copy, i, j)]			
 		elif j != 0 and j != n-1:	#Elsewhere in that bottom row
-			Sj = [Sj_r(i,j), Sj_l(i,j), Sj_u(i,j)]
+			Sj = [Sj_r(spin_lattice_copy, i,j), Sj_l(spin_lattice_copy, i,j), Sj_u(spin_lattice_copy, i,j)]
 
 	# Only considering the left column but between the top and bottom row.
 	if j == 0 and i > 0 and i < n-1:
-		Sj = [Sj_r(i,j), Sj_d(i,j), Sj_u(i,j)]
+		Sj = [Sj_r(spin_lattice_copy, i,j), Sj_d(spin_lattice_copy, i,j), Sj_u(spin_lattice_copy, i,j)]
 	
 	# Only considering the right column but between the top and bottom row.
 	if j == n-1 and i > 0 and i < n-1:
-		Sj = [Sj_l(i,j), Sj_u(i,j), Sj_d(i,j)]
+		Sj = [Sj_l(spin_lattice_copy, i,j), Sj_u(spin_lattice_copy, i,j), Sj_d(spin_lattice_copy, i,j)]
 	
 	# Only considering the elements inside the largest square of elements
 	if n-1 > i > 0 and n-1 > j > 0:
-		Sj = [Sj_r(i,j), Sj_l(i,j), Sj_u(i,j), Sj_d(i,j)]
+		Sj = [Sj_r(spin_lattice_copy, i,j), Sj_l(spin_lattice_copy, i,j), Sj_u(spin_lattice_copy, i,j), Sj_d(spin_lattice_copy, i,j)]
 		
 	num_of_Sj = len(Sj)
 	Sj_sum = sum(Sj)
 	return Si, num_of_Sj, Sj_sum
 
 #Definition of the energy E calculation, returning the calculated value
-def H(i,j):
-	Si = pairs(i,j)[0]
-	num_of_Sj = pairs(i,j)[1]
-	Sj_sum = pairs(i,j)[2]
+def H(spin_lattice_copy, i,j):
+	Si = pairs(spin_lattice_copy, i,j)[0]
+	num_of_Sj = pairs(spin_lattice_copy, i,j)[1]
+	Sj_sum = pairs(spin_lattice_copy, i,j)[2]
 	H = Si * ( -J * (Sj_sum) - num_of_Sj*h )
 	return H, Si, num_of_Sj, Sj_sum
-	
+
 #Calculation of the Magnetic Susceptibility, Xv
-def mag_sus( spin_lattice ):
+def mag_sus( spin_lattice_copy ):
 	global beta
 	#On page 42 of Hutzler's lectures, Xv is defined by beta * (<M**2> - <M>**2)
-	Xv = beta * ( np.mean( spin_lattice**2 ) - np.mean( spin_lattice )**2 )
+	Xv = beta * ( np.mean( spin_lattice_copy**2 ) - np.mean( spin_lattice_copy )**2 )
 	return Xv
-	
-#This copy function is to keep the original lattice for comparison with the equilibrium.
-original_spin_lattice = copy.deepcopy(spin_lattice) #http://bit.ly/1P0AC9u
 
 #Calculation of the energy change and acceptance of the flip in each iteration of the process toward equilibrium
-def iteration(original_spin_lattice, beta):
-	global n
+def iteration(spin_lattice_copy, beta):
+	global n 
 
 	#This start the runtime timer
 	start = timeit.default_timer() #http://bit.ly/1mUNYrh
 	
 	#Loop counter is used to get an approximation to the number of sweeps carried out
 	loop_counter = 0.0
-	enough = 5
+	enough = 50
 	#M_arr = []
 	#mag_sus_arr = []
 	
@@ -159,18 +159,18 @@ def iteration(original_spin_lattice, beta):
  		# 1. Pick a spin site randomly and calculate the contribution to the energy involving this spin.
 		i = randint( 0, n-1 )	#Selection probability is hopefully catered for here.
 		j = randint( 0, n-1 )	#Otherwise "ergodicity" wouldn't be met!
-		H1 = H(i,j)[0]
+		H1 = H(spin_lattice_copy, i,j)[0]
 		# 2. Calculate the energy for the flipped original spin.
-		spin_lattice[i][j] *= -1 #spin value flipped
-		H2 = H(i,j)[0]			 
+		spin_lattice_copy[i][j] *= -1 #spin value flipped
+		H2 = H(spin_lattice_copy, i,j)[0]			 
 		dE = H1 - H2	#	dE = Hij_flip - Hij. HE = sum of all Hij
 		P_flip = exp( -beta*dE )
 		if dE <= 0: 
-			spin_lattice[i][j] *= -1
+			spin_lattice_copy[i][j] *= -1
 			# 3. If the new energy is less, keep the flipped value.
 		ran_num = random.random()
 		if dE > 0 and ran_num < P_flip:	#Acceptance probability
-			spin_lattice[i][j] *= -1
+			spin_lattice_copy[i][j] *= -1
 			# 4. If the new energy is more, only keep with probability P_flip
 	
 		#Addition of the net magnetization and magnetic susceptibility to its list
@@ -178,9 +178,10 @@ def iteration(original_spin_lattice, beta):
 		#M = np.mean(spin_lattice)
 		#mag_sus_arr.append( mag_sus( spin_lattice ) )
 		loop_counter += 1
-
-	eqlb_M = np.mean(spin_lattice)	#Equilibrium value for magnetization
-	eqlb_mag_sus = mag_sus( spin_lattice )	#Equilibrium value for magnetic sus.
+		
+		
+	eqlb_M = np.mean( spin_lattice_copy )	#Equilibrium value for magnetization
+	eqlb_mag_sus = mag_sus( spin_lattice_copy )	#Equilibrium value for magnetic sus.
 	
 	#This is only an approximate because i and j are generated randomly, so for 25 elements, n = 5, in 25 loops it is quite likely that not every element was evaluated.
 	approx_sweeps = loop_counter/(n)**2
@@ -190,13 +191,14 @@ def iteration(original_spin_lattice, beta):
 	runtime = stop - start
 	#print eqlb_M, eqlb_mag_sus
 	
-	return spin_lattice, eqlb_M, eqlb_mag_sus, approx_sweeps, runtime
+	return spin_lattice_copy, eqlb_M, eqlb_mag_sus, approx_sweeps, runtime
+	
 #------------------------------
 #Results to output in terminal
 #------------------------------
 
 #The RHS of the equation below runs the iteration function for each value of temperature. It stores the results of each iteration in an array. All of these results arrays are stored in the LHS.
-results_array = [iteration(original_spin_lattice, beta) for beta in beta_array]
+results_array = [iteration(spin_lattice_copy, beta) for spin_lattice_copy, beta in zip(spin_lattice_copies, beta_array)]
 
 spin_lattices_array = [i[0] for i in results_array]
 eqlb_M_values = [i[1] for i in results_array]
@@ -213,23 +215,42 @@ runtime_values = [i[4] for i in results_array]
 Everything below is for plotting
 #--------------------------------------------------------------------
 '''
+
 #------------------------------
 #Plotting the statistical info
 #------------------------------
-fig1, (ax3, ax4) = plt.subplots(ncols=2) #http://bit.ly/1mXPklK
+fig1, (ax2, ax3, ax4) = plt.subplots( ncols=3, figsize=(14, 7) ) #http://bit.ly/1mXPklK
 
-ax3 = np.arange(0, len(beta_array), 1)
-ax4 = np.arange(0, len(beta_array), 1)
+#x3 = np.arange(0, temperatures, 1)
+#x4 = np.arange(0, temperatures, 1)
 #fit = 1 - np.exp(-x1/(25*n + n**2))
-ax3.plot(ax3, eqlb_mag_sus_values, 'b')
-ax4.plot(ax4, eqlb_M_values, 'g')
+ax2.plot(temperatures, runtime_values, 'r')
+ax2.set_title('Runtime')
+ax2.set_xlabel('Temperature')
+ax2.set_ylabel(r'Runtime, $t$ (s)')
+
+ax3.plot(temperatures, eqlb_mag_sus_values, 'b')
+ax3.set_title('Magnetic Susceptibility')
+ax3.set_xlabel('Temperature')
+ax3.set_ylabel(r'Magnetic Susceptibility, $\chi_\nu$')
+
+ax4.plot(temperatures, eqlb_M_values, 'g')
+ax4.set_title('Magnetisation')
+ax4.set_xlabel('Temperature')
+ax4.set_ylabel(r'Magnetisation, $M$ $(A/m^3)$')
+
+fig1.subplots_adjust(left = 0.07, right = 0.96, wspace = 0.3)
+
 #plt.ylim( -3e9,3e9 )
 #plt.xlim( 0, 3000)
-'''So I'm getting ambiguous plots for mag_sus. sometimes it briefly oscillates about x axis, sometimes it increase from minus 2e8 to 0, and lastly sometimes it decrease from 2e8 to 0. The going to zero makes sense because the lattice is becomin ferromagnetic. The randomness of the plots though is bizarre' '''
 
+'''So I am getting ambiguous plots for mag_sus. sometimes it briefly oscillates about x axis, sometimes it increase from minus 2e8 to 0, and lastly sometimes it decrease from 2e8 to 0. The going to zero makes sense because the lattice is becomin ferromagnetic. The randomness of the plots though is bizarre'''
+
+'''
 #-----------------------------
 #Plotting the spin lattices
 #-----------------------------
+'''
 '''
 #Figure with sub-plots
 fig, (ax1, ax2) = plt.subplots(ncols=2, figsize=(7,3.5)) #http://bit.ly/1mXPklK
@@ -250,6 +271,7 @@ img = ax2.imshow(spin_lattice, interpolation='nearest', cmap = colour_map, norm 
 ax2.set_title('After')
 plt.colorbar(img, cax=cbar_ax, cmap=colour_map)
 '''
+
 plt.show()
 
 '''
