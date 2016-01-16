@@ -28,7 +28,7 @@ Definitions of constants and the spin lattice
 
 #And the heat capacity is Cv = beta/T (<E**2> - <E>**2). Both are determined by fluctuations apparently.
 
-temperatures = np.arange(1,10,0.5) # Kelvin
+temperatures = np.arange(1,100,0.5) # Kelvin
 
 h = 0.001 # Teslas
 
@@ -45,7 +45,7 @@ h = 1	#external magnetic field
 #if h < 0 the spin site j desires to line up in the negative direction => -equilibrium
 
 n = int(raw_input("n = ")) #The size of the square matrix. Requires user input
-print 'Expect a runtime of approximately: ', (n**2 + n)/425, 'seconds.'
+#print 'Expect a runtime of approximately: ', (n**2 + n)/425, 'seconds.'
 
 
 spin_lattice = np.zeros((n,n), dtype=int) #Creation of the spin lattice
@@ -149,13 +149,13 @@ def iteration(original_spin_lattice, beta):
 	
 	#Loop counter is used to get an approximation to the number of sweeps carried out
 	loop_counter = 0.0
-	enough = 300
+	enough = 5
 	#M_arr = []
 	#mag_sus_arr = []
 	
 	#The below while loop reads "while the lattice is not ferromagnetic do:", ferromagnetic meaning, all elements point in the same direction
-	while abs( np.mean(spin_lattice) ) != 1: 
-	#while loop_counter < enough:
+	#while abs( np.mean(spin_lattice) ) != 1: 
+	while loop_counter < enough:
  		# 1. Pick a spin site randomly and calculate the contribution to the energy involving this spin.
 		i = randint( 0, n-1 )	#Selection probability is hopefully catered for here.
 		j = randint( 0, n-1 )	#Otherwise "ergodicity" wouldn't be met!
@@ -177,10 +177,10 @@ def iteration(original_spin_lattice, beta):
 		#M_arr.append( np.mean(spin_lattice) )
 		#M = np.mean(spin_lattice)
 		#mag_sus_arr.append( mag_sus( spin_lattice ) )
-		
+		loop_counter += 1
+
 	eqlb_M = np.mean(spin_lattice)	#Equilibrium value for magnetization
 	eqlb_mag_sus = mag_sus( spin_lattice )	#Equilibrium value for magnetic sus.
-	loop_counter += 1
 	
 	#This is only an approximate because i and j are generated randomly, so for 25 elements, n = 5, in 25 loops it is quite likely that not every element was evaluated.
 	approx_sweeps = loop_counter/(n)**2
@@ -188,6 +188,7 @@ def iteration(original_spin_lattice, beta):
 	#Stops the runtime timer
 	stop = timeit.default_timer()
 	runtime = stop - start
+	#print eqlb_M, eqlb_mag_sus
 	
 	return spin_lattice, eqlb_M, eqlb_mag_sus, approx_sweeps, runtime
 #------------------------------
@@ -197,14 +198,14 @@ def iteration(original_spin_lattice, beta):
 #The RHS of the equation below runs the iteration function for each value of temperature. It stores the results of each iteration in an array. All of these results arrays are stored in the LHS.
 results_array = [iteration(original_spin_lattice, beta) for beta in beta_array]
 
-spin_lattices_array = [results_array[i][0] for i in results_array]
-eqlb_M_values = [results_array[i][1] for i in results_array]
-eqlb_mag_sus_values = [results_array[i][2] for i in results_array]
-approx_sweeps_values = [results_array[i][3] for i in results_array]
-runtime_values = [results_array[i][4] for i in results_array]
+spin_lattices_array = [i[0] for i in results_array]
+eqlb_M_values = [i[1] for i in results_array]
+eqlb_mag_sus_values = [i[2] for i in results_array]
+approx_sweeps_values = [i[3] for i in results_array]
+runtime_values = [i[4] for i in results_array]
 
 #The "%0.3f" %approx_sweeps bit just rounds off the number of sweeps to 3 sig figs.
-print 'Runtime = ', runtime, 'seconds for a total of ~', "%0.3f" %approx_sweeps, 'sweeps.'
+#print 'Runtime = ', runtime, 'seconds for a total of ~', "%0.3f" %approx_sweeps, 'sweeps.'
 
 
 '''
@@ -215,13 +216,13 @@ Everything below is for plotting
 #------------------------------
 #Plotting the statistical info
 #------------------------------
-#fig1, (ax3, ax4) = plt.subplots(ncols=2) #http://bit.ly/1mXPklK
+fig1, (ax3, ax4) = plt.subplots(ncols=2) #http://bit.ly/1mXPklK
 
-#x1 = np.arange(0, loop_counter, 1)
-#x2 = np.arange(0, loop_counter, 1)
+ax3 = np.arange(0, len(beta_array), 1)
+ax4 = np.arange(0, len(beta_array), 1)
 #fit = 1 - np.exp(-x1/(25*n + n**2))
-#plt.subplot(1)(x1, M_arr, 'b', x1, fit, 'r')
-#plt.plot(x2, mag_sus_arr, 'g')
+ax3.plot(ax3, eqlb_mag_sus_values, 'b')
+ax4.plot(ax4, eqlb_M_values, 'g')
 #plt.ylim( -3e9,3e9 )
 #plt.xlim( 0, 3000)
 '''So I'm getting ambiguous plots for mag_sus. sometimes it briefly oscillates about x axis, sometimes it increase from minus 2e8 to 0, and lastly sometimes it decrease from 2e8 to 0. The going to zero makes sense because the lattice is becomin ferromagnetic. The randomness of the plots though is bizarre' '''
@@ -229,7 +230,7 @@ Everything below is for plotting
 #-----------------------------
 #Plotting the spin lattices
 #-----------------------------
-
+'''
 #Figure with sub-plots
 fig, (ax1, ax2) = plt.subplots(ncols=2, figsize=(7,3.5)) #http://bit.ly/1mXPklK
 
@@ -248,7 +249,7 @@ ax1.set_title('Before')
 img = ax2.imshow(spin_lattice, interpolation='nearest', cmap = colour_map, norm = norm)
 ax2.set_title('After')
 plt.colorbar(img, cax=cbar_ax, cmap=colour_map)
-
+'''
 plt.show()
 
 '''
