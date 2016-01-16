@@ -9,8 +9,7 @@
 #--------------------------------------------------------------------
 import numpy as np
 import matplotlib as mpl
-mpl.use('TkAgg')
-
+mpl.use('TkAgg') #Changing the 'backend' of mpl is necessary to make it do different things. I need TkAgg for the animation of the spin lattices for the range of temps.
 import matplotlib.pyplot as plt
 import scipy.constants as pc
 import random
@@ -30,12 +29,11 @@ Definitions of constants and the spin lattice
 
 #And the heat capacity is Cv = beta/T (<E**2> - <E>**2). Both are determined by fluctuations apparently.
 
-temperatures = np.arange(1,50,0.1) # Kelvin
+temperatures = np.arange(1.0,50.0,1.0) # Kelvin
 
 #kb = pc.k * (5*(10**21))
 #print kb
-beta_array = [1/(T) for T in temperatures]
-
+beta_array = [1/T for T in temperatures]
 
 J = 1.0 #interaction energy
 
@@ -44,9 +42,10 @@ h = 1	#external magnetic field in Teslas
 #if J < 0 the interaction is antiferromagnetic ~ checkerboard
 #if h > 0 the spin site j desires to line up in the positive direction => +equilibrium
 #if h < 0 the spin site j desires to line up in the negative direction => -equilibrium
-n=25
+n=45
 #n = int(raw_input("n = ")) #The size of the square matrix. Requires user input
 #print 'Expect a runtime of approximately: ', (n**2 + n)/425, 'seconds.'
+start_program_timer = timeit.default_timer() #http://bit.ly/1mUNYrh
 
 
 spin_lattice = np.zeros((n,n), dtype=int) #Creation of the spin lattice
@@ -67,6 +66,7 @@ for i in range(n):
 #original_spin_lattice = copy.deepcopy(spin_lattice) #http://bit.ly/1P0AC9u
 spin_lattice_copies = [copy.deepcopy(spin_lattice) for i in temperatures]
 
+sweep_limits = np.arange(1,40,1)
 
 '''
 #-----------------------------
@@ -142,21 +142,23 @@ def mag_sus( spin_lattice_copy, beta ):
 	return Xv
 
 #Calculation of the energy change and acceptance of the flip in each iteration of the process toward equilibrium
+
 def iteration(spin_lattice_copy, beta):
 	global n
+	print 'Starting on this temperature:',(1/beta),'K'
 
+	sweep_limit = 60
 	#This start the runtime timer
-	start = timeit.default_timer() #http://bit.ly/1mUNYrh
+	start_iterations_timer = timeit.default_timer() #http://bit.ly/1mUNYrh
 
 	#Loop counter is used to get an approximation to the number of sweeps carried out
 	loop_counter = 0.0
-	enough = 250
+	sweeps = 0.0
 	#M_arr = []
 	#mag_sus_arr = []
-
 	#The below while loop reads "while the lattice is not ferromagnetic do:", ferromagnetic meaning, all elements point in the same direction
 	#while abs( np.mean(spin_lattice) ) != 1:
-	while loop_counter < enough:
+	while sweeps < sweep_limit: #120 sweeps for T=200K, 13 for T=20K, 6 for T=2K
  		# 1. Pick a spin site randomly and calculate the contribution to the energy involving this spin.
 		i = randint( 0, n-1 )	#Selection probability is hopefully catered for here.
 		j = randint( 0, n-1 )	#Otherwise "ergodicity" wouldn't be met!
@@ -179,54 +181,67 @@ def iteration(spin_lattice_copy, beta):
 		#M = np.mean(spin_lattice)
 		#mag_sus_arr.append( mag_sus( spin_lattice ) )
 		loop_counter += 1
+		sweeps = loop_counter/(n**2)
 
+		if abs( np.mean( spin_lattice_copy ) ) == 1:
+			sweep_min = sweeps
+			print 'Number of sweeps',sweeps,'at',1/beta,'K'
+			sweeps = sweep_limit # ends the while loop
+
+	print 'Moving onto next temperature'
 
 	eqlb_M = np.mean( spin_lattice_copy )	#Equilibrium value for magnetization
 	eqlb_Xv = mag_sus( spin_lattice_copy, beta )	#Equilibrium value for magnetic sus.
 
-	#This is only an approximate because i and j are generated randomly, so for 25 elements, n = 5, in 25 loops it is quite likely that not every element was evaluated.
-	approx_sweeps = loop_counter/(n)**2
-
 	#Stops the runtime timer
-	stop = timeit.default_timer()
-	runtime = stop - start
+	stop_iterations_timer = timeit.default_timer()
+	iterations_runtime = stop_iterations_timer - start_iterations_timer
 	#print eqlb_M, eqlb_mag_sus
 
-	return spin_lattice_copy, eqlb_M, eqlb_Xv, approx_sweeps, runtime
+	return spin_lattice_copy, eqlb_M, eqlb_Xv, iterations_runtime, sweep_min
 
 #------------------------------
 #Results to output in terminal
 #------------------------------
 
 #The RHS of the equation below runs the iteration function for each value of temperature. It stores the results of each iteration in an array. All of these results arrays are stored in the LHS.
+#results_array = [iteration(sweep_limit, spin_lattice_copy, beta) for sweep_limit, spin_lattice_copy, beta in zip(sweep_limits, spin_lattice_copies, beta_array)]
 results_array = [iteration(spin_lattice_copy, beta) for spin_lattice_copy, beta in zip(spin_lattice_copies, beta_array)]
 
 spin_lattices_array = [i[0] for i in results_array]
 eqlb_M_values = [i[1] for i in results_array]
 eqlb_Xv_values = [i[2] for i in results_array]
-approx_sweeps_values = [i[3] for i in results_array]
-runtime_values = [i[4] for i in results_array]
+iterations_runtime_values = [i[3] for i in results_array]
+sweep_min_values = [i[4] for i in results_array]
 
-#The "%0.3f" %approx_sweeps bit just rounds off the number of sweeps to 3 sig figs.
-#print 'Runtime = ', runtime, 'seconds for a total of ~', "%0.3f" %approx_sweeps, 'sweeps.'
-
-
+stop_program_timer = timeit.default_timer()
+program_runtime = stop_program_timer - start_program_timer
+print 'Runtime = ', program_runtime, 'seconds'
 '''
 #--------------------------------------------------------------------
 Everything below is for plotting
 #--------------------------------------------------------------------
 '''
-'''
 #------------------------------
 #Plotting the statistical info
 #------------------------------
+
+plt.plot(temperatures, sweep_min_values)
+plt.title('Number of Sweeps vs. Temperature')
+plt.xlabel(r'Temperature, $K$')
+plt.ylabel('Number of Sweeps')
+plt.show()
+
+'''
+
+
 fig1, (ax2, ax3, ax4) = plt.subplots( ncols=3, figsize=(14, 7) ) #http://bit.ly/1mXPklK
 
 #x3 = np.arange(0, temperatures, 1)
 #x4 = np.arange(0, temperatures, 1)
 #fit = 1 - np.exp(-x1/(25*n + n**2))
 
-ax2.plot(temperatures, runtime_values, 'r')
+ax2.plot(temperatures, iterations_runtime_values, 'r')
 ax2.set_title('Runtime')
 ax2.set_xlabel(r'Temperature, $K$')
 ax2.set_ylabel(r'Runtime, $t$ (s)')
@@ -270,6 +285,7 @@ img = .imshow(spin_lattice, interpolation='nearest', cmap = colour_map, norm = n
 ax2.set_title('After')
 
 '''
+'''
 plt.ion()
 #The colours I want my plots to be in. Grey for 1, and black for -1. Grey and black is easier on the eyes.
 colour_map = mpl.colors.ListedColormap(['black', 'grey'])
@@ -281,9 +297,9 @@ for i in range( len(spin_lattices_array) ):
 	plt.draw()
 	print temperatures[i]
 	time.sleep(0.001)
-	plt.cla()
+	plt.cla() #http://bit.ly/1P6zLEi
 
-
+'''
 '''
 #--------------------------------------------------------------------
 End of script
